@@ -6,6 +6,8 @@
 **Alcance:** VTEX Control Center · Commerce Hub · Project Control Center · Customer Service Control Center · Herramientas internas  
 **Implementación de referencia:** `commerce-hub/login.html` + `src/js/auth.js`
 
+> **Complementa:** `apps_script_standards.md §7` (Auth.gs, validación de sesiones server-side) · `style_guide.md §7` (formularios) · `style_guide.md §16` (accesibilidad de formularios de login) · `google_sheets_standards.md` (tabla SESIONES)
+
 ---
 
 ## Índice

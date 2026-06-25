@@ -434,9 +434,14 @@ Paso 4: VALIDACIÓN FINAL
 | `CLAUDE.md` | Sí (proyectos con Claude Code) | Al agregar reglas nuevas, al cambiar el stack o el versionado |
 | `config.js` | Sí | En cada cambio funcional (versión + changelog) |
 | `CHANGELOG.md` | Recomendado | Alternativa a changelog en config.js para proyectos sin JS |
-| `style_guide.md` | Recomendado | Al establecer patrones nuevos que deban replicarse |
-| `project_workflow.md` | Recomendado | Al definir flujos operativos del negocio |
+| `docs/project_workflow.md` | Recomendado | Al definir freeze zones, convenciones y flujo de trabajo del proyecto |
+| `docs/decisions/NNN-nombre.md` | Para decisiones arquitectónicas | Usar `adr_template.md` como base — ver §9.2 |
+| `docs/gas-setup.md` | Si el proyecto tiene GAS | Documentar archivos .gs, Script Properties y bootstrap |
 | `ai_rules.md` | Este archivo | Al agregar una nueva herramienta de IA o cambiar el workflow |
+
+> **Proyectos nuevos:** seguir `new_project_guide.md` paso a paso para crear la estructura base, el repo en GitHub y el setup de GAS.
+
+> **Templates disponibles en `../project-standards/`:** `project_workflow_template.md` (base para `docs/project_workflow.md`) · `adr_template.md` (base para decisiones en `docs/decisions/`) · `gas_setup_template.md` (setup genérico de GAS) · `new_project_guide.md` (guía completa de proyecto nuevo)
 
 ### 9.2 Cuándo la IA debe sugerir actualizar documentación
 
@@ -445,7 +450,7 @@ Siempre que se realice alguno de estos cambios:
 - Se agrega un módulo nuevo → actualizar README (estructura de carpetas) y config.js (versión)
 - Se cambia una convención de nombre → actualizar style_guide.md
 - Se agrega un patrón técnico reutilizable → actualizar style_guide.md
-- Se toma una decisión arquitectónica importante → documentar en CLAUDE.md o project_workflow.md
+- Se toma una decisión arquitectónica importante → documentar en `docs/decisions/` usando `adr_template.md` (o en CLAUDE.md si es menor)
 - Se descubre un gotcha o limitación del stack → documentar para que la siguiente IA no lo repita
 
 ### 9.3 Formato del changelog en config.js
@@ -716,7 +721,7 @@ DOCUMENTACIÓN
 [ ] config.js tiene el bump de versión correcto (si aplica)
 [ ] El CHANGELOG en config.js tiene la entrada correspondiente
 [ ] Si se creó un patrón nuevo, está documentado en style_guide.md
-[ ] Si se tomó una decisión arquitectónica, está registrada en CLAUDE.md
+[ ] Si se tomó una decisión arquitectónica, está registrada en `docs/decisions/` (usar `adr_template.md`)
 
 GIT
 [ ] Los archivos a commitear están revisados (sin archivos accidentales)

@@ -5,6 +5,8 @@
 **Autor:** Gabriel Luna — Productos Web  
 **Alcance:** VTEX Control Center · Commerce Hub · Project Control Center · Customer Service Control Center · Marketplace Portal · Herramientas internas
 
+> **Complementa:** `style_guide.md §2–§4` (tokens CSS, tipografía, colores) · `style_guide.md §16` (accesibilidad: landmarks, gestión de foco) · `login_standard.md` (pantalla de login previa al shell)
+
 ---
 
 ## Índice

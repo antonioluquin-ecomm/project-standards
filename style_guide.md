@@ -2,7 +2,7 @@
 
 **Versión:** 1.0.0  
 **Fecha:** 2026-06-16  
-**Alcance:** Marketplace Portal · Commerce Hub · VTEX Control Center · VTEX Bookmarklets · Adidas Order Control Center · Herramientas internas
+**Alcance:** Marketplace Portal · Commerce Hub · VTEX Control Center · VTEX Bookmarklets · Project Control Center · Customer Service Control Center · Correos Transaccionales · Herramientas internas
 
 ---
 
@@ -23,6 +23,7 @@
 13. [Git](#13-git)
 14. [Estructura de proyecto](#14-estructura-de-proyecto)
 15. [Integración con IA](#15-integración-con-ia)
+16. [Accesibilidad](#16-accesibilidad)
 
 ---
 
@@ -1557,6 +1558,193 @@ Antes de integrar código sugerido por cualquier asistente, verificar:
 - Agregar una librería de componentes (Bootstrap, Tailwind, Ant Design, etc.)
 - Cambiar el backend de GAS a otro servicio
 - Subir o publicar información del proyecto a servicios externos (pastebins, diagramas online, etc.)
+
+---
+
+## 16. Accesibilidad
+
+> **Nivel objetivo:** WCAG 2.1 AA para productos internos. El foco es no-bloquear a usuarios de teclado ni lectores de pantalla — no se requiere certificación formal.
+
+### 16.1 HTML semántico primero
+
+Usar el elemento correcto antes de recurrir a ARIA. ARIA solo complementa; no reemplaza semántica nativa.
+
+| Caso | Correcto | Incorrecto |
+|------|---------|-----------|
+| Acción que navega | `<a href="...">` | `<div onclick="...">` |
+| Acción que ejecuta | `<button>` | `<div onclick="...">` |
+| Listado de ítems | `<ul>/<ol>` | `<div>` anidados |
+| Encabezados de sección | `<h2>`, `<h3>` (jerarquía coherente) | `<p class="titulo">` |
+| Datos tabulares | `<table>` con `<th scope="col">` | `<div>` con CSS de grid |
+
+### 16.2 Atributos ARIA esenciales
+
+```html
+<!-- Icono sin texto visible -->
+<button aria-label="Cerrar panel">✕</button>
+
+<!-- Elemento que describe a otro -->
+<input id="email" aria-describedby="email-hint" />
+<p id="email-hint">Usá tu correo corporativo.</p>
+
+<!-- Landmark regions -->
+<nav aria-label="Navegación principal">...</nav>
+<main>...</main>
+<aside aria-label="Panel de usuario">...</aside>
+
+<!-- Estado de carga -->
+<div role="status" aria-live="polite" id="statusBar">Cargando...</div>
+```
+
+**Reglas:**
+- `aria-label` cuando no hay texto visible y no hay elemento de referencia.
+- `aria-labelledby` cuando el label ya existe en el DOM — apuntar a su `id`.
+- `aria-describedby` para hints, errores y tooltips secundarios (no el label principal).
+- No poner `aria-label` en elementos que ya tienen texto visible — es redundante y confunde.
+
+### 16.3 Modales y diálogos
+
+```html
+<div role="dialog" aria-modal="true" aria-labelledby="modal-title" id="miModal">
+  <h2 id="modal-title">Confirmar acción</h2>
+  <p>¿Deseas eliminar este registro?</p>
+  <button id="modal-confirm">Confirmar</button>
+  <button id="modal-cancel">Cancelar</button>
+</div>
+```
+
+**Checklist de modal:**
+- `role="dialog"` + `aria-modal="true"` en el contenedor.
+- `aria-labelledby` apuntando al `<h2>` o título del modal.
+- Al abrir: mover el foco al primer elemento interactivo del modal (o al contenedor con `tabindex="-1"`).
+- Al cerrar: devolver el foco al elemento que abrió el modal (`document.activeElement` guardado antes de abrir).
+- Bloquear el Tab dentro del modal (focus trap) mientras está abierto.
+- `Escape` cierra el modal.
+
+### 16.4 Gestión de foco
+
+```js
+// Guardar referencia antes de abrir
+const _focusOrigin = document.activeElement;
+
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  modal.removeAttribute('hidden');
+  // Mover foco al primer elemento interactivo
+  const first = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (first) first.focus();
+}
+
+function closeModal(modalId) {
+  document.getElementById(modalId).setAttribute('hidden', '');
+  // Devolver foco al origen
+  if (_focusOrigin) _focusOrigin.focus();
+}
+```
+
+**Reglas de foco:**
+- Nunca quitar `outline` sin reemplazarlo: `outline: none` sin alternativa rompe la navegación por teclado.
+- Los estilos de focus de este proyecto usan `var(--primary-mid)` como anillo de foco — no sobreescribir sin reemplazar.
+- `tabindex="-1"` permite recibir foco por JS sin entrar en el Tab flow natural.
+- `tabindex="0"` añade un elemento custom al Tab flow (usar solo si el elemento no tiene rol interactivo nativo).
+- Valores de `tabindex` positivos (`tabindex="1"`, `tabindex="2"`) están prohibidos — rompen el orden natural.
+
+### 16.5 Regiones dinámicas (aria-live)
+
+```html
+<!-- Mensajes de estado no urgentes (carga completada, éxito) -->
+<div role="status" aria-live="polite" id="statusBar" class="status-bar"></div>
+
+<!-- Errores urgentes -->
+<div role="alert" aria-live="assertive" id="errorAlert"></div>
+```
+
+| Tipo | Atributo | Cuándo |
+|------|---------|--------|
+| `role="status"` | `aria-live="polite"` | Mensajes informativos: "Cargando…", "Guardado." |
+| `role="alert"` | `aria-live="assertive"` | Errores críticos que requieren atención inmediata |
+
+**Nota:** el `statusBar` del template de Apéndice A ya usa `role="status"` — mantenerlo.  
+No usar `aria-live="assertive"` para mensajes informativos de rutina — interrumpe al lector de pantalla.
+
+### 16.6 Navegación por teclado
+
+Teclas estándar que deben funcionar sin JS adicional en elementos nativos:
+
+| Tecla | Elemento | Comportamiento esperado |
+|-------|---------|------------------------|
+| `Tab` / `Shift+Tab` | Todos | Navegar entre elementos interactivos en orden del DOM |
+| `Enter` | `<a>`, `<button>` | Activar |
+| `Space` | `<button>`, `<input type="checkbox">` | Activar / marcar |
+| `Escape` | Modal, dropdown abierto | Cerrar y devolver foco |
+| `Arrow keys` | `<select>`, grupos de radio | Cambiar opción |
+
+**Casos que requieren JS:**
+- Modales: bloquear Tab fuera del modal mientras está abierto.
+- Dropdowns custom: Arrow Up/Down para navegar ítems; Enter para seleccionar; Escape para cerrar.
+- Tabs de navegación: Arrow Left/Right para cambiar tab activo (patrón ARIA Tabs).
+
+### 16.7 Imágenes y contraste
+
+**Imágenes:**
+```html
+<!-- Imagen informativa -->
+<img src="logo.png" alt="Logo de Sporting" />
+
+<!-- Imagen decorativa (no aporta información) -->
+<img src="separador.png" alt="" role="presentation" />
+```
+
+**Contraste (referencia a tokens de este sistema):**
+
+| Uso | Token | Contraste mínimo |
+|-----|-------|-----------------|
+| Texto principal | `--text` (#111827) sobre `--bg` (#f0f2f7) | ✅ > 7:1 |
+| Texto secundario | `--muted` (#6b7280) sobre `--card` (#fff) | ✅ > 4.5:1 |
+| Texto en botón primary | blanco sobre `--primary` (#1a3f6b) | ✅ > 7:1 |
+| Texto en tag `--primary-soft` | `--primary` sobre `--primary-soft` | ✅ > 4.5:1 |
+
+> No crear variantes de color custom sin verificar contraste. Usar [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/) o el panel de accesibilidad de DevTools.
+
+### 16.8 Formularios accesibles
+
+```html
+<!-- Siempre label explícito o aria-label -->
+<label for="usuario">Usuario</label>
+<input id="usuario" type="text" aria-required="true" autocomplete="username" />
+
+<!-- Error de validación -->
+<input id="email" type="email" aria-invalid="true" aria-describedby="email-error" />
+<span id="email-error" role="alert">El email no tiene un formato válido.</span>
+
+<!-- Fieldset para grupos de opciones -->
+<fieldset>
+  <legend>Tipo de acceso</legend>
+  <label><input type="radio" name="rol" value="admin" /> Admin</label>
+  <label><input type="radio" name="rol" value="agente" /> Agente</label>
+</fieldset>
+```
+
+**Reglas:**
+- Todo `<input>` y `<select>` debe tener `<label>` asociado por `for`/`id`, o `aria-label`.
+- `placeholder` no reemplaza al `<label>` — desaparece al escribir y no es legible por todos los lectores.
+- `aria-required="true"` en campos obligatorios (complementa el atributo `required`).
+- `aria-invalid="true"` + `aria-describedby` al error cuando la validación falla.
+
+### 16.9 Checklist para la IA
+
+Antes de entregar código con UI, verificar:
+
+- [ ] ¿Todos los `<input>` y `<select>` tienen `<label>` o `aria-label`?
+- [ ] ¿Los modales tienen `role="dialog"`, `aria-modal="true"` y `aria-labelledby`?
+- [ ] ¿El foco se mueve al abrir un modal y regresa al cerrarlo?
+- [ ] ¿Los botones de icono tienen `aria-label`?
+- [ ] ¿El `statusBar` usa `role="status"`? ¿Los errores críticos usan `role="alert"`?
+- [ ] ¿No hay `tabindex` positivos?
+- [ ] ¿El texto en custom colors tiene ratio > 4.5:1?
+- [ ] ¿Las imágenes informativas tienen `alt` descriptivo? ¿Las decorativas tienen `alt=""`?
+- [ ] ¿`Escape` cierra modales y dropdowns?
+- [ ] ¿No se usó `outline: none` sin alternativa visible?
 
 ---
 
