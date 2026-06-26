@@ -4,7 +4,7 @@
 **Fecha:** 2026-06-16  
 **Autor:** Gabriel Luna — Productos Web  
 **Alcance:** Claude Code · Codex · ChatGPT · Futuras herramientas de IA  
-**Proyectos:** Marketplace Portal · Commerce Hub · VTEX Control Center · VTEX Bookmarklets · Project Control Center · Customer Service Control Center · Correos Transaccionales · Herramientas internas  
+**Proyectos:** Marketplace Portal · Commerce Hub · VTEX Control Center · VTEX Bookmarklets · Project Control Center · Customer Service Control Center · Correos Transaccionales · eComm Hub · Herramientas internas  
 **Documentación compartida:** `../project-standards/` (relativo a cada proyecto)
 
 ---
