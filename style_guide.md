@@ -506,6 +506,80 @@ Estados de module card:
 }
 ```
 
+### 5.X Chip de usuario y dropdown
+
+El área de usuario del sidebar se implementa como un **chip compacto** que abre un dropdown. No usar botones a ancho completo apilados (patrón obsoleto).
+
+**Estructura visual:**
+```
+[ GL ]  Gabriel Luna  ·  Administrador  [▾]
+```
+
+**HTML del chip (generado por JS — ver `application_shell.md §4.7`):**
+```html
+<div id="sidebar-user-chip" class="user-chip" role="button"
+     aria-haspopup="true" aria-expanded="false">
+  <div class="user-avatar">GL</div>
+  <div class="user-chip-info">
+    <span class="user-chip-name">Gabriel Luna</span>
+    <span class="auth-chip-role">Administrador</span>
+  </div>
+  <span class="user-chip-chevron" aria-hidden="true">▾</span>
+</div>
+```
+
+**HTML del dropdown (generado por JS, adjunto a `<body>`):**
+```html
+<div id="user-dropdown" class="user-dropdown" role="menu" style="display:none">
+  <div class="user-dropdown-header">
+    <div class="sidebar-user-name">Gabriel Luna</div>
+    <div class="sidebar-user-email">gabriel@empresa.com</div>
+    <div class="sidebar-user-meta">
+      <span class="auth-chip-role">Administrador</span>
+    </div>
+  </div>
+  <div class="user-dropdown-sep"></div>
+  <button class="user-dropdown-item theme-toggle" type="button" onclick="toggleTheme()">
+    <span class="th-icon">☾</span>
+    <span class="th-label">Modo oscuro</span>
+  </button>
+  <div class="user-dropdown-sep"></div>
+  <button class="user-dropdown-item" type="button" onclick="openChangePasswordModal()">Cambiar contraseña</button>
+  <div class="user-dropdown-sep"></div>
+  <button class="user-dropdown-item danger" type="button" onclick="authLogout()">Cerrar sesión</button>
+</div>
+```
+
+**CSS canónico:**
+```css
+/* Chip */
+.user-chip { display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:var(--radius-sm); cursor:pointer; border:1px solid transparent; transition:all .15s; user-select:none; width:100%; }
+.user-chip:hover { background:color-mix(in srgb,var(--text) 5%,transparent); border-color:var(--line); }
+.user-chip.open { background:var(--primary-soft); border-color:color-mix(in srgb,var(--primary) 20%,transparent); }
+
+.user-avatar { width:28px; height:28px; border-radius:50%; background:var(--primary-soft); color:var(--primary); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; letter-spacing:-.5px; }
+.user-chip-info { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.user-chip-name { font-size:12px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.user-chip-chevron { font-size:10px; color:var(--muted); flex-shrink:0; transition:transform .15s; }
+.user-chip.open .user-chip-chevron { transform:rotate(180deg); }
+
+/* Dropdown */
+.user-dropdown { position:fixed; background:var(--card); border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.12); z-index:200; overflow:hidden; min-width:200px; }
+.user-dropdown-header { padding:12px 14px; }
+.user-dropdown-sep { height:1px; background:var(--line); }
+.user-dropdown-item { display:flex; align-items:center; gap:8px; width:100%; padding:9px 14px; font-size:13px; font-weight:500; color:var(--text); background:none; border:none; cursor:pointer; text-align:left; font-family:inherit; transition:background .12s; }
+.user-dropdown-item:hover { background:color-mix(in srgb,var(--text) 5%,transparent); }
+.user-dropdown-item.danger { color:var(--danger); }
+.user-dropdown-item.danger:hover { background:var(--danger-bg); }
+```
+
+**Reglas:**
+- El dropdown se adjunta al `<body>` para evitar clipping del `overflow-y` del sidebar.
+- Se posiciona `fixed` calculando `getBoundingClientRect()` del chip al abrir.
+- El ítem `.theme-toggle` en el dropdown usa las mismas clases que el patrón estándar — `setTheme()` lo actualiza automáticamente junto con cualquier otro `.theme-toggle` de la página.
+- Cerrar: clic fuera del dropdown (listener en `document`) o tecla Escape.
+- El dropdown **no** se duplica en topbar ni como panel separado.
+
 ---
 
 ## 6. Tablas

@@ -263,54 +263,142 @@ El botón activo lleva clase `.active`. Si no hay tienda seleccionada, mostrar `
 
 ### 4.6 Nav items directos (proyectos SPA con pocas secciones)
 
+**Sección Overview (sin etiqueta):** el ítem Home/Dashboard va siempre primero, en su propia sección implícita sin label visible. No agrupa con Reportes.
+
 ```html
-<div class="nav-item" data-page="inicio" onclick="showPage('inicio')">
+<!-- Sección Overview — sin .nav-section, siempre primero -->
+<button class="nav-item active" onclick="showPage('dashboard')" type="button">
   <svg class="nav-icon">…</svg> Inicio
-</div>
+</button>
+
+<!-- Sección de lectura/visualización -->
+<div class="nav-section">Reportes</div>
+<button class="nav-item" onclick="showPage('agentes')" type="button">…</button>
+
+<!-- Sección de escritura/gestión -->
+<div class="nav-section">Gestión</div>
+<button class="nav-item" onclick="showPage('formulario')" type="button">…</button>
+
+<!-- Sección de admin — oculta para no-admins -->
+<div class="nav-section">Sistema</div>
+<button class="nav-item" onclick="showPage('configuracion')" type="button">…</button>
 ```
 
+Reglas:
 - `data-page` permite que `showPage()` marque el ítem activo con `.active`.
 - Siempre `type="button"` en botones, `href` en links de navegación real.
+- La sección Sistema se oculta vía `applyRoleRestrictions()` para roles sin `canView('configuracion')`.
+- Ver `navigation_standard.md` para el estándar global de secciones y nomenclatura.
 
-### 4.7 Sidebar footer — área de usuario
+### 4.7 Sidebar footer — chip de usuario
 
-Renderizado por JS tras cargar la sesión (no hardcodeado en HTML para evitar flash de datos vacíos):
+Renderizado por JS tras cargar la sesión. El footer es un **chip compacto** que abre un dropdown con todas las acciones del usuario. No usar botones a ancho completo apilados.
 
+**HTML del footer (en el HTML base — solo el contenedor):**
+```html
+<div class="sidebar-footer" id="sidebarFooter"></div>
+```
+
+**JS — `renderSidebarUser()`:**
 ```js
 function renderSidebarUser() {
-  const footer = document.getElementById('sidebarFooter');
-  if (!footer || document.getElementById('sidebar-user-info')) return;
-  const u = SESSION.usuario;   // SESSION de auth.js (modelo RBAC)
-  if (!u) return;
-  const rolAdmin = Number(u.id_rol) === 1;
-  const roleLabel = u.nombre_rol || (rolAdmin ? 'Administrador' : 'Rol ' + u.id_rol);
-  const roleCls   = rolAdmin ? 'auth-role-admin' : 'auth-role-agente';
-  const info = document.createElement('div');
-  info.id = 'sidebar-user-info';
-  info.innerHTML =
-    '<div class="sidebar-user-name">' + escapeHtml(u.nombre || u.email) + '</div>'
-    + '<div class="sidebar-user-meta"><span class="auth-chip-role ' + roleCls + '">' + roleLabel + '</span></div>'
-    + '<div class="sidebar-user-actions">'
-    + '<button class="theme-toggle" onclick="toggleTheme()" type="button">☾ Modo oscuro</button>'
-    + '<button class="sidebar-action-btn" onclick="showChangePasswordModal()" type="button">Cambiar contraseña</button>'
-    + '<button class="sidebar-action-btn danger" onclick="authLogout()" type="button">Cerrar sesión</button>'
-    + '</div>';
-  footer.insertBefore(info, footer.firstChild);
-  _updateThemeToggles(document.documentElement.getAttribute('data-theme') || 'light');
+  const s = getSession();
+  if (!s) return;
+  const u      = s.usuario;
+  const footer = document.querySelector('.sidebar-footer');
+  if (!footer || document.getElementById('sidebar-user-chip')) return;
+
+  // Iniciales del avatar (hasta 2 letras)
+  const initials = (u.nombre || u.email || '?')
+    .trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase().slice(0, 2) || '?';
+
+  const chip = document.createElement('div');
+  chip.id = 'sidebar-user-chip';
+  chip.className = 'user-chip';
+  chip.setAttribute('role', 'button');
+  chip.setAttribute('aria-haspopup', 'true');
+  chip.setAttribute('aria-expanded', 'false');
+  chip.innerHTML =
+    '<div class="user-avatar">' + escapeHtml(initials) + '</div>' +
+    '<div class="user-chip-info">' +
+      '<span class="user-chip-name">' + escapeHtml(u.nombre || u.email) + '</span>' +
+      '<span class="auth-chip-role">' + escapeHtml(_roleLabel(u.id_rol)) + '</span>' +
+    '</div>' +
+    '<span class="user-chip-chevron" aria-hidden="true">▾</span>';
+  chip.addEventListener('click', e => { e.stopPropagation(); _toggleUserDropdown(); });
+  footer.appendChild(chip);
+
+  // Dropdown — se agrega a <body> para evitar clipping del overflow-y del sidebar
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const drop = document.createElement('div');
+  drop.id = 'user-dropdown';
+  drop.className = 'user-dropdown';
+  drop.setAttribute('role', 'menu');
+  drop.style.display = 'none';
+  drop.innerHTML =
+    '<div class="user-dropdown-header">' +
+      '<div class="sidebar-user-name">' + escapeHtml(u.nombre || u.email) + '</div>' +
+      '<div class="sidebar-user-email">' + escapeHtml(u.email) + '</div>' +
+      '<div class="sidebar-user-meta"><span class="auth-chip-role">' + escapeHtml(_roleLabel(u.id_rol)) + '</span></div>' +
+    '</div>' +
+    '<div class="user-dropdown-sep"></div>' +
+    '<button class="user-dropdown-item theme-toggle" type="button" onclick="toggleTheme()">' +
+      '<span class="th-icon">' + (isDark ? '☀' : '☾') + '</span>' +
+      '<span class="th-label">' + (isDark ? 'Modo claro' : 'Modo oscuro') + '</span>' +
+    '</button>' +
+    '<div class="user-dropdown-sep"></div>' +
+    '<button class="user-dropdown-item" type="button" onclick="openChangePasswordModal()">Cambiar contraseña</button>' +
+    '<div class="user-dropdown-sep"></div>' +
+    '<button class="user-dropdown-item danger" type="button" onclick="authLogout()">Cerrar sesión</button>';
+  drop.addEventListener('click', e => e.stopPropagation());
+  document.body.appendChild(drop);
+
+  document.addEventListener('click', _closeUserDropdown);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') _closeUserDropdown(); });
 }
 ```
 
-**Orden canónico del sidebar footer** (de arriba hacia abajo):
+**Helpers de posicionamiento:**
+```js
+function _openUserDropdown() {
+  const drop = document.getElementById('user-dropdown');
+  const chip = document.getElementById('sidebar-user-chip');
+  if (!drop || !chip) return;
+  const rect = chip.getBoundingClientRect();
+  drop.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+  drop.style.left   = rect.left + 'px';
+  drop.style.width  = rect.width + 'px';
+  drop.style.display = 'block';
+  chip.setAttribute('aria-expanded', 'true');
+  chip.classList.add('open');
+}
 
-1. Nombre del usuario (`u.name` o `u.email` como fallback)
-2. Badge de rol (nombre real, no hardcodeado — ver §6.2)
-3. Theme toggle (`.theme-toggle`) — **aquí y solo aquí**
-4. "Cambiar contraseña"
-5. "Cerrar sesión"
+function _closeUserDropdown() {
+  const drop = document.getElementById('user-dropdown');
+  const chip = document.getElementById('sidebar-user-chip');
+  if (drop) drop.style.display = 'none';
+  if (chip) { chip.setAttribute('aria-expanded', 'false'); chip.classList.remove('open'); }
+}
 
-> No implementar el theme toggle como chip separado en el sidebar ni en el topbar. Un botón "Tema" fuera del footer de usuario rompe la coherencia entre proyectos.
+function _toggleUserDropdown() {
+  const drop = document.getElementById('user-dropdown');
+  if (drop && drop.style.display !== 'none') _closeUserDropdown();
+  else _openUserDropdown();
+}
+```
 
-**El theme toggle vive en el sidebar footer, no en el topbar.** Ver §5 para la excepción SPA (sin sidebar-footer).
+**Contenido del dropdown (orden canónico):**
+
+1. Nombre del usuario + email + badge de rol (identidad, no interactivo)
+2. Separador
+3. Toggle de tema (`.theme-toggle` — lo actualiza `setTheme()` automáticamente)
+4. Separador
+5. Cambiar contraseña
+6. Separador
+7. Cerrar sesión (color `var(--danger)`)
+
+> El dropdown se agrega al `<body>`, no al sidebar, para evitar el clipping de `overflow-y: auto`. Se posiciona `fixed` calculando `getBoundingClientRect()` del chip.  
+> El `.theme-toggle` en el dropdown es el **único** toggle de tema. No duplicarlo en el topbar ni como botón suelto en el sidebar.
 
 ### 4.8 Identidad visual por proyecto
 
