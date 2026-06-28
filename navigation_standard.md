@@ -50,6 +50,10 @@ SIDEBAR (224px fijo)
 
 ## 2. Reglas de secciones
 
+### 2.0 Colapso del sidebar (desktop)
+
+El sidebar puede ocultarse por completo en desktop (≥901px) vía un botón en el topbar, dando ancho completo al contenido. Es **opcional** pero recomendado en apps con tablas anchas. Patrón "ocultar completo" (no rail de íconos). Estado persistido en `localStorage` + anti-flash. Detalle de implementación en `application_shell.md §10.1.1`.
+
 ### 2.1 Sección Overview (sin etiqueta)
 
 - El Home/Dashboard va **siempre primero**, sin etiqueta de sección (`div.nav-section`).
@@ -214,3 +218,4 @@ Al crear o auditar la navegación de una app, verificar:
 - [ ] Tab de conexiones externa llamado "Integraciones" (no "Conexión")
 - [ ] Orden de tabs de Configuración: Parámetros → Usuarios → Roles → Integraciones
 - [ ] Texto estático de config operativa (responsable, parámetros) fuera del sidebar footer
+- [ ] (opcional) Colapso de sidebar en desktop vía botón en topbar, con estado persistido (`application_shell.md §10.1.1`)

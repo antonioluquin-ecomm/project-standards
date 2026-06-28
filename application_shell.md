@@ -857,6 +857,57 @@ En resoluciones ≤ 768 px, el sidebar actúa como drawer lateral:
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 ```
 
+### 10.1.1 Colapso del sidebar en desktop (opcional)
+
+En desktop (≥ 901 px) el sidebar puede **ocultarse por completo** para dar ancho completo al contenido (útil en herramientas con tablas anchas). Patrón **ocultar completo**, no rail de íconos — el rail choca con el chip de usuario sin avatar (`§4.7`) y agrega complejidad sin payoff real.
+
+**Reglas:**
+- El estado se guarda en `localStorage` (`<prefix>_sidebar` = `'collapsed'`) y se aplica con **anti-flash** en el `<head>` (igual que el tema), sobre `document.documentElement`:
+
+```html
+<script>(function(){
+  /* …anti-flash de tema… */
+  if (localStorage.getItem('<prefix>_sidebar') === 'collapsed')
+    document.documentElement.setAttribute('data-sidebar', 'collapsed');
+})();</script>
+```
+
+- El botón vive en el **topbar** (no flotante), visible solo en desktop. Al colapsar, el sidebar sale del viewport y el contenido ocupa el ancho completo; el breadcrumb del topbar mantiene el contexto.
+
+```css
+.topbar-toggle { display: none; }   /* base */
+.sidebar { transition: transform .2s ease; }
+.main    { transition: margin-left .2s ease; }
+
+@media (min-width: 901px) {
+  .topbar-toggle { display: inline-flex; }
+  [data-sidebar="collapsed"] .sidebar { transform: translateX(-100%); }
+  [data-sidebar="collapsed"] .main    { margin-left: 0; }
+}
+```
+
+```js
+function initSidebarCollapse() {
+  const btn = document.getElementById('sidebarCollapseBtn');
+  if (!btn) return;
+  const sync = () => {
+    const c = document.documentElement.getAttribute('data-sidebar') === 'collapsed';
+    btn.setAttribute('aria-pressed', c ? 'true' : 'false');
+    btn.setAttribute('title', c ? 'Mostrar menú lateral' : 'Ocultar menú lateral');
+  };
+  btn.addEventListener('click', () => {
+    const c = document.documentElement.getAttribute('data-sidebar') === 'collapsed';
+    if (c) { document.documentElement.removeAttribute('data-sidebar'); localStorage.removeItem('<prefix>_sidebar'); }
+    else   { document.documentElement.setAttribute('data-sidebar', 'collapsed'); localStorage.setItem('<prefix>_sidebar', 'collapsed'); }
+    sync();
+  });
+  sync();
+}
+```
+
+> **Desktop-only**: las reglas de colapso van dentro de `@media (min-width: 901px)` para no interferir con el patrón drawer de mobile (`§10.1`), que usa su propio `translateX(-100%)` + `.open`.
+> Implementación de referencia: AuditCS (`assets/js/main.js`, `assets/css/layout.css`).
+
 ### 10.2 Restricción de escritura por módulo (RBAC)
 
 Los elementos de escritura llevan clase `.admin-only`. `restrictWriteIfAgent()` los deshabilita si el usuario no puede editar **el módulo actual**. El módulo se deriva de la URL (`modules/<módulo>/`). El Administrador (`id_rol===1`) y el modo demo siempre pueden editar.
@@ -1171,6 +1222,7 @@ Usar para auditar proyectos existentes o validar proyectos nuevos.
 - [ ] Store selector solo si el proyecto es multi-tienda
 - [ ] Grupo Admin oculto por defecto (`display:none`) y visible solo para admins
 - [ ] `.sidebar-footer` renderizado por JS (no hardcodeado)
+- [ ] (opcional) Colapso de sidebar en desktop: botón en topbar, estado en `localStorage` + anti-flash, reglas dentro de `@media (min-width:901px)` (§10.1.1)
 
 ### Panel de usuario
 
