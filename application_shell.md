@@ -122,7 +122,8 @@ Carga el tema guardado en `localStorage` y lo aplica al `<html>` antes de que el
       <div class="brand-name">Nombre de App</div>
       <div class="brand-meta" id="sidebarVersionBtn" title="Ver historial de cambios">
         <span id="sidebarVersion">v…</span>
-        <span>· Equipo / Área</span>
+        <!-- Sufijo "· Equipo / Área" OPCIONAL: omitirlo si el brand ya es claro
+             (AuditCS lo omite para mantener el brand limpio). Ver §4.3. -->
       </div>
     </div>
     <div class="sidebar-version-popover" id="versionPopover" style="display:none;"></div>
@@ -234,7 +235,7 @@ Los valores a continuación son el estándar. Usarlos en todos los proyectos sin
 |----------|-------------|
 | `.brand-icon` | Siglas en mayúsculas (2–3 caracteres). Fondo `--primary`, texto blanco. |
 | `.brand-name` | Nombre completo de la aplicación. |
-| `.brand-meta` | Versión (`vX.Y.Z`) + separador `·` + equipo/área. Clickeable → abre popover de changelog. |
+| `.brand-meta` | Versión (`vX.Y.Z`) + (opcional) separador `·` + equipo/área. El sufijo equipo/área es **opcional**: omitirlo si el brand ya identifica claramente la app (AuditCS lo omite). Clickeable → abre popover de changelog. |
 | `#versionPopover` | Lista de entradas del `CHANGELOG`. Siempre `display:none` inicial. |
 
 ### 4.4 Store selector
@@ -549,19 +550,20 @@ Todo dato de sesión que se inserte en `innerHTML` debe escaparse:
 const esc = v => String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 ```
 
-### 6.4 Pantalla de Configuración (admin) — Usuarios / Roles / Conexión
+### 6.4 Pantalla de Configuración (admin) — Parámetros / Usuarios / Roles / Integraciones
 
-Todo proyecto con RBAC tiene una pantalla **Configuración** visible solo para Administrador (`isAdmin()`). Su subtítulo canónico: *"Gestión de usuarios, permisos y configuración del sistema"*. Se arma con un **strip de 3 tabs** (segmented control: un contenedor con botones, el activo resaltado — cada proyecto usa sus propias clases/variables de tema):
+Todo proyecto con RBAC tiene una pantalla **Configuración** visible solo para Administrador (`isAdmin()`). Su subtítulo canónico: *"Gestión de usuarios, permisos y configuración del sistema"*. Se arma con un **strip de 4 tabs** (segmented control: un contenedor con botones, el activo resaltado — cada proyecto usa sus propias clases/variables de tema). El orden canónico de tabs está definido en `navigation_standard.md §4`:
 
 | Tab | Contenido |
 |-----|-----------|
+| **Parámetros** | Configuración específica de la app (pesos, umbrales, listas, criterios). Es el primer tab y el activo por defecto. |
 | **Usuarios** | Tabla (Nombre · Email · Rol · Estado · Acciones) + form de alta/edición. El `<select>` de Rol se **puebla dinámicamente** desde `getRoles()` (solo activos); el badge de Rol en cada fila se resuelve por lookup contra esa misma lista. Sin hard-delete: "Desactivar". |
 | **Roles y permisos** | Tabla de roles (Rol · Tipo `Sistema`/`Personalizado` · Estado · Acciones) + botón "Nuevo rol". Al elegir un rol se muestra su **matriz de permisos**: una fila por módulo con un selector de 3 estados (`Oculto` / `Solo ver` / `Ver + editar`). El Administrador aparece como solo-lectura (sin Editar/Desactivar/editar permisos). |
-| **Conexión al Google Sheet** | Override opcional de la URL del Web App + estado de conexión + estructura de hojas requerida. Solo admin. |
+| **Integraciones** | Conexiones con servicios externos (Google Sheet, APIs, webhooks): override opcional de la URL del Web App + estado de salud de cada conexión + estructura de hojas requerida. Solo admin. Reemplaza al antiguo tab "Conexión" (ver `navigation_standard.md §4`). El identificador interno (`data-cfg-tab`, claves JS) puede seguir siendo `conexion` por compatibilidad; solo cambia el texto visible. |
 
 **Reglas de implementación:**
 
-- La pantalla la arma una única función (`renderUserManagementSection()`), idempotente (no re-renderiza si ya existe el contenedor). Las secciones de conexión que vivían sueltas en el HTML se **mueven** dentro del tab "Conexión" por DOM, no se duplican.
+- La pantalla la arma una única función (`renderUserManagementSection()`), idempotente (no re-renderiza si ya existe el contenedor). Las secciones de conexión que vivían sueltas en el HTML se **mueven** dentro del tab "Integraciones" por DOM, no se duplican.
 - **Orden de carga:** los usuarios dependen de los roles para mostrar el nombre del rol → cargar roles **antes** que usuarios (`_loadRoles().then(_loadUsuarios)`), no en paralelo, o la primera pintura muestra "Rol 1/2/3".
 - Los 3 estados de permiso **no** son un campo nuevo: derivan de `puede_ver`+`puede_editar` (`Oculto`=NO/NO, `Solo ver`=SI/NO, `Ver+editar`=SI/SI). Al guardar se envían ambos booleanos por módulo.
 - Ocultar botones es solo UX; el backend valida cada escritura por módulo (`apps_script_standards.md §7.2`). El enforcement real no vive en esta pantalla.
@@ -1031,7 +1033,7 @@ modules/area/mod.html  → shell completo (sidebar + header de módulo en main)
           <div class="brand-name">Nombre de App</div>
           <div class="brand-meta" id="sidebarVersionBtn" title="Ver historial de cambios">
             <span id="sidebarVersion">v…</span>
-            <span>· Equipo</span>
+            <!-- <span>· Equipo</span> — opcional, ver §4.3 -->
           </div>
         </div>
         <div class="sidebar-version-popover" id="versionPopover" style="display:none;"></div>
@@ -1180,7 +1182,8 @@ Usar para auditar proyectos existentes o validar proyectos nuevos.
 
 ### Configuración (admin)
 
-- [ ] Pantalla con 3 tabs: Usuarios · Roles y permisos · Conexión al Google Sheet
+- [ ] Pantalla con 4 tabs en orden: Parámetros · Usuarios · Roles y permisos · Integraciones
+- [ ] Tab de conexiones externas llamado "Integraciones" (no "Conexión")
 - [ ] `<select>` de rol y badges se pueblan dinámicamente desde `getRoles()`
 - [ ] Roles cargan **antes** que usuarios (no en paralelo)
 - [ ] Matriz de permisos con 3 estados (Oculto / Solo ver / Ver + editar) por módulo

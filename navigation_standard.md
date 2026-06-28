@@ -150,7 +150,14 @@ Toda app con RBAC tiene una pantalla **Configuración** (Sistema) con este orden
 
 ## 5. Mapas de navegación por aplicación
 
-### AuditCS (Customer Service Control Center)
+### AuditCS (Customer Service Control Center) — **implementación de referencia**
+
+> **AuditCS es el proyecto canónico de navegación de este estándar.** Es la implementación
+> de referencia para la estructura del sidebar, las secciones (Overview / Reportes / Gestión /
+> Sistema), el chip de usuario + dropdown (`§3`) y los 4 tabs de Configuración (`§4`). Al
+> arrancar una app nueva, copiar la estructura de sidebar y chip de AuditCS antes que
+> reinventarla. (Para dark/light mode y matriz RBAC, la referencia sigue siendo Commerce Hub —
+> ver `application_shell.md §6.4`.)
 
 ```
 [sin etiqueta]     Inicio (dashboard)

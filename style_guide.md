@@ -96,10 +96,12 @@ Reglas de uso:
 
 ```
 ┌──────────────────┬─────────────────────────────────────────┐
-│ SIDEBAR (240px)  │ CONTENT AREA                            │
+│ SIDEBAR (224px)  │ CONTENT AREA                            │
 │ fijo, 100vh      │  ├─ Topbar sticky (search + métricas)   │
 │                  │  └─ Main container (scrolleable)        │
 └──────────────────┴─────────────────────────────────────────┘
+
+> Ancho canónico del sidebar: **224px** (`--sidebar-w`). Ver `application_shell.md §4.2`.
 ```
 
 **Layout hub-and-spoke** (módulos standalone):
