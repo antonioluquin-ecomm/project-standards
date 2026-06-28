@@ -308,23 +308,19 @@ function renderSidebarUser() {
   const footer = document.querySelector('.sidebar-footer');
   if (!footer || document.getElementById('sidebar-user-chip')) return;
 
-  // Iniciales del avatar (hasta 2 letras)
-  const initials = (u.nombre || u.email || '?')
-    .trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase().slice(0, 2) || '?';
-
   const chip = document.createElement('div');
   chip.id = 'sidebar-user-chip';
   chip.className = 'user-chip';
   chip.setAttribute('role', 'button');
   chip.setAttribute('aria-haspopup', 'true');
   chip.setAttribute('aria-expanded', 'false');
+  chip.setAttribute('title', u.nombre || u.email);
   chip.innerHTML =
-    '<div class="user-avatar">' + escapeHtml(initials) + '</div>' +
     '<div class="user-chip-info">' +
-      '<span class="user-chip-name">' + escapeHtml(u.nombre || u.email) + '</span>' +
-      '<span class="auth-chip-role">' + escapeHtml(_roleLabel(u.id_rol)) + '</span>' +
-    '</div>' +
-    '<span class="user-chip-chevron" aria-hidden="true">▾</span>';
+      '<span class="user-chip-name">' + escapeHtml(u.nombre || u.email) +
+        ' <span class="user-chip-chevron" aria-hidden="true">▾</span></span>' +
+      '<span class="user-chip-role">' + escapeHtml(_roleLabel(u.id_rol)) + '</span>' +
+    '</div>';
   chip.addEventListener('click', e => { e.stopPropagation(); _toggleUserDropdown(); });
   footer.appendChild(chip);
 
@@ -364,11 +360,20 @@ function _openUserDropdown() {
   const drop = document.getElementById('user-dropdown');
   const chip = document.getElementById('sidebar-user-chip');
   if (!drop || !chip) return;
-  const rect = chip.getBoundingClientRect();
-  drop.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
-  drop.style.left   = rect.left + 'px';
-  drop.style.width  = rect.width + 'px';
   drop.style.display = 'block';
+  if (window.innerWidth <= 900) {
+    // Mobile: sidebar oculto → panel bottom-center
+    drop.style.bottom = '12px';
+    drop.style.left   = '12px';
+    drop.style.right  = '12px';
+    drop.style.width  = 'auto';
+  } else {
+    const rect = chip.getBoundingClientRect();
+    drop.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+    drop.style.left   = rect.left + 'px';
+    drop.style.right  = 'auto';
+    drop.style.width  = rect.width + 'px';
+  }
   chip.setAttribute('aria-expanded', 'true');
   chip.classList.add('open');
 }
@@ -688,8 +693,8 @@ El popover **no** tiene botón de cierre explícito. El click fuera es suficient
 ```css
 .sidebar-version-popover {
   position: fixed;
-  top: 58px;          /* debajo del área de brand del sidebar */
-  left: 232px;        /* borde derecho del sidebar (224px) + 8px de separación */
+  top: 58px;                              /* debajo del área de brand del sidebar */
+  left: calc(var(--sidebar-w) + 8px);    /* borde derecho del sidebar + 8px de separación */
 }
 ```
 
@@ -1156,7 +1161,7 @@ Usar para auditar proyectos existentes o validar proyectos nuevos.
 - [ ] `VERSION.number` coincide con el `v` de la primera entrada del `CHANGELOG`
 - [ ] Número de versión en formato `X.Y.Z` (sin prefijo `v` en el array, con prefijo en el badge)
 - [ ] Fechas en formato `YYYY-MM-DD`
-- [ ] Popover: `position:fixed; top:58px; left:232px; z-index:1000`
+- [ ] Popover: `position:fixed; top:58px; left:calc(var(--sidebar-w)+8px); z-index:1000`
 - [ ] Popover: `background:var(--card); border:1px solid var(--sidebar-line)`
 - [ ] Popover: `min-width:280px; max-width:340px; max-height:70vh; overflow-y:auto`
 - [ ] Popover muestra encabezado "Historial de cambios" con separador

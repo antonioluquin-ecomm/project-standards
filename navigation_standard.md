@@ -93,7 +93,8 @@ SIDEBAR (224px fijo)
 El footer del sidebar contiene **un único chip compacto** que abre un dropdown con todas las acciones del usuario:
 
 ```
-[ GL ]  Gabriel Luna  ·  Administrador  [▾]
+Gabriel Luna ▾
+Administrador
 ```
 
 Al hacer clic, abre un dropdown encima del chip con:
