@@ -129,16 +129,7 @@ Carga el tema guardado en `localStorage` y lo aplica al `<html>` antes de que el
     <div class="sidebar-version-popover" id="versionPopover" style="display:none;"></div>
   </div>
 
-  <!-- 2. Store selector (solo proyectos multi-tienda) -->
-  <div class="sidebar-store">
-    <div class="sidebar-section-label">Tienda</div>
-    <div class="store-selector" id="storeSelectorHome"></div>
-    <div id="storeNotice" class="sidebar-store-notice" style="display:none;">
-      ⚠ Seleccioná una tienda para comenzar.
-    </div>
-  </div>
-
-  <!-- 3. Navegación -->
+  <!-- 2. Navegación -->
   <nav class="sidebar-nav" id="sidebarNav">
     <!-- grupos y/o ítems directos según la complejidad del proyecto -->
   </nav>
@@ -240,8 +231,11 @@ Los valores a continuación son el estándar. Usarlos en todos los proyectos sin
 
 ### 4.4 Store selector
 
-Solo en proyectos multi-tienda. Renderizado por JS. Cada tienda es un `<button class="store-btn">`.  
-El botón activo lleva clase `.active`. Si no hay tienda seleccionada, mostrar `#storeNotice`.
+**El store selector va en el topbar, no en el sidebar.** Es un selector de contexto global — cambia el entorno de trabajo para toda la sesión — y los selectores de contexto global (tenant, org, tienda) pertenecen al topbar, no a la navegación lateral.
+
+Ubicarlo en el sidebar crea fricción si el sidebar está colapsado (§10.1.1) y confunde su jerarquía con la navegación.
+
+Ver §5.2 para la plantilla HTML del topbar con store selector incluido.
 
 ### 4.5 Nav groups (proyectos con muchos módulos)
 
@@ -454,7 +448,14 @@ Aplica a SPA y a multi-página con sidebar. El topbar muestra solo el breadcrumb
   <span class="topbar-sep">›</span>
   <span class="topbar-crumb">Sección actual</span>  <!-- o id="topbar-crumb" si se actualiza por JS -->
   <div class="topbar-actions">
-    <!-- Botones de acción global (solo si los hay) -->
+    <!-- Store selector (solo apps multi-tienda) -->
+    <div class="topbar-store">
+      <div class="store-selector" id="storeSelectorBar"></div>
+      <div id="storeNotice" class="topbar-store-notice" style="display:none;">
+        ⚠ Seleccioná una tienda para comenzar.
+      </div>
+    </div>
+    <!-- Otros botones de acción global (si los hay) -->
   </div>
 </div>
 ```
@@ -1090,15 +1091,6 @@ modules/area/mod.html  → shell completo (sidebar + header de módulo en main)
         <div class="sidebar-version-popover" id="versionPopover" style="display:none;"></div>
       </div>
 
-      <!-- Store selector: omitir si el proyecto no es multi-tienda -->
-      <div class="sidebar-store">
-        <div class="sidebar-section-label">Tienda</div>
-        <div class="store-selector" id="storeSelectorHome"></div>
-        <div id="storeNotice" class="sidebar-store-notice" style="display:none;">
-          ⚠ Seleccioná una tienda para comenzar.
-        </div>
-      </div>
-
       <nav class="sidebar-nav" id="sidebarNav">
         <!-- Nav groups o nav items según el tipo de proyecto -->
         <div id="adminNavGroup" style="display:none;">
@@ -1219,7 +1211,7 @@ Usar para auditar proyectos existentes o validar proyectos nuevos.
 - [ ] Popover: `min-width:280px; max-width:340px; max-height:70vh; overflow-y:auto`
 - [ ] Popover muestra encabezado "Historial de cambios" con separador
 - [ ] Tipografía interna del popover sigue §8.10
-- [ ] Store selector solo si el proyecto es multi-tienda
+- [ ] Store selector en `.topbar-actions` del topbar (no en sidebar) — solo si el proyecto es multi-tienda
 - [ ] Grupo Admin oculto por defecto (`display:none`) y visible solo para admins
 - [ ] `.sidebar-footer` renderizado por JS (no hardcodeado)
 - [ ] (opcional) Colapso de sidebar en desktop: botón en topbar, estado en `localStorage` + anti-flash, reglas dentro de `@media (min-width:901px)` (§10.1.1)

@@ -21,8 +21,6 @@ SIDEBAR (224px fijo)
 │   ├─ Nombre de la app (13px/700)
 │   └─ Badge de versión → popover de changelog
 │
-├─ [STORE SELECTOR]  ← solo apps multi-tienda
-│
 ├─ [OVERVIEW]  ← sección sin etiqueta, siempre el primer ítem de nav
 │   └─ Home / Dashboard / Inicio
 │
