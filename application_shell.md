@@ -838,6 +838,127 @@ Si el proyecto depende de una conexión activa al GAS backend, puede mostrar un 
 
 Estados: `ok` (verde) · `error` (rojo) · `loading` (gris).
 
+### 9.4 Modal de carga con progreso y cancelación
+
+Para operaciones API largas (> 5 s) iniciadas por un botón del usuario. Reemplaza las barras inline (`progressWrap`). Patrón estándar aplicado en `vtex-control-center` desde v1.61.x.
+
+#### HTML del modal
+
+```html
+<div id="xLoadOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal" style="padding:24px;max-width:480px;">
+    <div class="progress-header">
+      <span class="eyebrow">Contexto</span>
+      <h2 style="margin:4px 0 2px;">Título de la operación…</h2>
+      <p id="xLoadSubtitle" style="margin:0 0 16px;color:var(--text-secondary);font-size:.875rem;"></p>
+    </div>
+    <div class="progress-track">
+      <div id="xLoadProgressBar" class="progress-bar"></div>
+    </div>
+    <div class="progress-footer" style="margin-top:8px;">
+      <span id="xLoadElapsed" style="font-size:.8125rem;color:var(--text-secondary);">0 s</span>
+      <span id="xLoadEta"     style="font-size:.8125rem;color:var(--text-secondary);"></span>
+    </div>
+    <div class="modal-footer" style="margin-top:20px;justify-content:flex-end;">
+      <button id="btnCancelXLoad" class="btn-secondary">Cancelar</button>
+    </div>
+  </div>
+</div>
+```
+
+- Clases CSS usadas son globales de `styles.css`: `.modal-overlay`, `.modal`, `.progress-track`, `.progress-bar`, `.progress-header`, `.progress-footer`, `.modal-footer`.
+- `.modal` no tiene `padding` — agregar `style="padding:24px"` inline.
+- No agregar CSS local salvo que el módulo tenga necesidades específicas.
+
+#### JS — estado y funciones
+
+```js
+// ─── Loading modal ────────────────────────────────────────────────
+let xLoadCanceled    = false;
+let xLoadTimer       = null;
+let xLoadElapsedSecs = 0;
+const X_EST_SECS     = 20;   // segundos estimados para la operación
+
+function showXLoadModal(subtitle) {
+  xLoadCanceled    = false;
+  xLoadElapsedSecs = 0;
+  setLoading(btnTrigger, true);            // deshabilita el botón que disparó la carga
+  document.getElementById('xLoadSubtitle').textContent  = subtitle;
+  document.getElementById('xLoadProgressBar').style.width = '5%';
+  document.getElementById('xLoadElapsed').textContent   = '0 s';
+  document.getElementById('xLoadEta').textContent       = '';
+  document.getElementById('xLoadOverlay').style.display = 'flex';
+  xLoadTimer = setInterval(() => {
+    xLoadElapsedSecs++;
+    const pct = Math.min(90, Math.round((xLoadElapsedSecs / X_EST_SECS) * 90));
+    document.getElementById('xLoadProgressBar').style.width = pct + '%';
+    document.getElementById('xLoadElapsed').textContent = xLoadElapsedSecs + ' s';
+    const rem = Math.max(0, X_EST_SECS - xLoadElapsedSecs);
+    document.getElementById('xLoadEta').textContent = rem > 0 ? '· ~' + rem + ' s restantes' : '· finalizando…';
+  }, 1000);
+}
+
+function closeXLoadModal(complete) {
+  clearInterval(xLoadTimer);
+  xLoadTimer = null;
+  const overlay = document.getElementById('xLoadOverlay');
+  const bar     = document.getElementById('xLoadProgressBar');
+  if (complete) {
+    bar.style.width = '100%';
+    setTimeout(() => { overlay.style.display = 'none'; bar.style.width = '0%'; }, 600);
+  } else {
+    overlay.style.display = 'none';
+    bar.style.width = '0%';
+  }
+  setLoading(btnTrigger, false);           // rehabilita el botón
+}
+```
+
+#### Función de carga
+
+```js
+async function loadData() {
+  showXLoadModal('Descripción del contexto');
+  try {
+    const data = await callApi('endpointName');
+    if (xLoadCanceled) return;
+    // … procesar data …
+    setStatus('Datos cargados.', 'ok');
+    closeXLoadModal(true);
+  } catch (err) {
+    if (!xLoadCanceled) {
+      setStatus('Error: ' + err.message, 'error');
+      closeXLoadModal(false);
+    }
+  }
+}
+```
+
+#### Listeners de cancelación
+
+```js
+document.getElementById('btnCancelXLoad').addEventListener('click', () => {
+  xLoadCanceled = true;
+  closeXLoadModal(false);
+  setStatus('Carga cancelada.', 'info');
+});
+document.getElementById('xLoadOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('xLoadOverlay')) {
+    xLoadCanceled = true;
+    closeXLoadModal(false);
+    setStatus('Carga cancelada.', 'info');
+  }
+});
+```
+
+#### Reglas
+
+- **Cancelación sin `AbortController`**: `callApi()` no expone signal. El flag `xLoadCanceled` descarta el resultado cuando llega. La llamada HTTP continúa en background.
+- **Sin `finally`**: `closeXLoadModal` se llama explícitamente en el path de éxito (`true`) y en el de error (`false`), siempre bajo guard `if (!canceled)`.
+- **Botón multi-operación**: si el mismo modal sirve para dos botones (ej. "Por SKU" y "Por almacén"), guardar la referencia activa en una variable `_xLoadBtn` y pasarla como parámetro a `showXLoadModal`.
+- **`setLoading(btn, true/false)`** no es obligatorio si `showXLoadModal` / `closeXLoadModal` manejan `btn.disabled` directamente — elegir uno u otro, no mezclar.
+- No usar `progressWrap` inline en módulos nuevos. El patrón de modal es el estándar.
+
 ---
 
 ## 10. Comportamientos comunes
