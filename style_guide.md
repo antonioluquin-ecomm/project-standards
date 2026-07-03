@@ -1,7 +1,7 @@
 # Style Guide Maestro — Productos Web Internos
 
-**Versión:** 1.0.0  
-**Fecha:** 2026-06-16  
+**Versión:** 1.1.0  
+**Fecha:** 2026-07-03  
 **Alcance:** Marketplace Portal · Commerce Hub · VTEX Control Center · VTEX Bookmarklets · Project Control Center · Customer Service Control Center · Correos Transaccionales · Herramientas internas
 
 ---
@@ -669,6 +669,38 @@ th[data-sortable].sort-desc::after { content: ' ↓'; opacity: 1; color: var(--p
 .pagination { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
 .pagination-info { font-size: 12.5px; color: var(--muted); flex: 1; }
 ```
+
+`.data-table` en `styles.css` asume, además, que la columna de **nombre** cae en la 4ta posición y una de **descripción** en la 5ta, con `min-width: 1400px` — pensado para tablas grandes tipo listados de categorías/marcas:
+
+```css
+/* En styles.css */
+.data-table { min-width: 1400px; }
+.data-table td:nth-child(4) { font-family: var(--font); font-weight: 500; white-space: normal; min-width: 140px; }
+.data-table td:nth-child(5) { color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+```
+
+#### 6.2.1 Override local cuando el layout de columnas no coincide
+
+Una tabla más chica o con otro orden de columnas (la de nombre en la 2da posición, sin columna de descripción, 5-6 columnas en vez de 10+) no encaja con esas dos reglas posicionales. **No** crear una clase local nueva tipo `.mi-modulo-table` que reimplemente `.data-table` desde cero — eso es exactamente el tipo de duplicación que este documento busca evitar (visto repetido en VTEX Control Center como `.offers-table`, `.col-table`, cada uno casi idéntico a `.data-table` con números ligeramente distintos). En su lugar, seguir usando `class="data-table"` y neutralizar/reapuntar las dos reglas posicionales con overrides **scoped por ID de sección**, marcando la columna de texto libre con una clase explícita (`.col-name`) en vez de depender de su posición:
+
+```css
+/* Local al módulo — el layout de esta tabla no coincide con la asunción de .data-table */
+.data-table { min-width: 780px; }                    /* ancho acorde a esta tabla, no 1400px */
+#resultsPanel td:nth-child(4):not(.col-name),
+#resultsPanel td:nth-child(5):not(.col-name) {
+  font-family: var(--mono); font-weight: 400; white-space: nowrap;
+  color: inherit; max-width: none; overflow: visible; text-overflow: clip;
+}
+#resultsPanel td.col-name {
+  font-family: var(--font); font-weight: 500; white-space: normal; min-width: 220px; max-width: 380px;
+}
+```
+
+```html
+<td class="col-name">${producto.nombre}</td>  <!-- en cualquier posición -->
+```
+
+El selector `#resultsPanel td:nth-child(4)` (ID) le gana en especificidad a `.data-table td:nth-child(4)` (clase) del CSS global sin importar el orden de carga, así que el reset es determinístico. La condición `:not(.col-name)` evita pisar la celda que sí es la de nombre si por coincidencia cae en la posición 4 o 5. Este es el **único** tipo de override local aceptable sobre `.data-table` — ancho mínimo + neutralizar las 2 reglas posicionales cuando no aplican al layout real, nunca una clase paralela completa.
 
 ### 6.3 Comportamiento requerido
 

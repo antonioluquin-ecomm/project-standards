@@ -1,7 +1,7 @@
 # Apps Script Standards — Backend Maestro
 
-**Versión:** 1.1.0
-**Fecha:** 2026-06-24
+**Versión:** 1.2.0
+**Fecha:** 2026-07-03
 **Alcance:** Todos los proyectos del ecosistema (Commerce Hub · VTEX Control Center · Marketplace Portal · Customer Service · Herramientas internas)
 
 > **Complementa:** `google_sheets_standards.md` (modelo de datos) · `ai_rules.md §11` (seguridad y credenciales) · `style_guide.md §10` (frontend que consume este backend)
@@ -747,7 +747,107 @@ function getConfigCached_() {
 
 Nota: el cache vive solo durante la ejecución del request. GAS no tiene estado entre requests.
 
-### 11.4 fetch a APIs externas
+### 11.4 No anidar reintentos sobre un helper que ya reintenta
+
+La cuota de `UrlFetchApp` (ver §11.1) es **por proyecto de Apps Script, compartida por todos los módulos** que cuelgan del mismo Web App — no por módulo ni por usuario. Un módulo con retry mal diseñado puede agotarla para todos los demás.
+
+**Anti-patrón:** un módulo agrega su propio wrapper con backoff (`miRetry_(path) { ... vtexFetch_(path) ... }`) por encima de un helper compartido (`vtexFetch_`/`vtexRequest_`) que **también** reintenta internamente. El resultado es reintentar el reintento: si el helper base ya hace hasta 3 intentos con backoff, y el wrapper local hace 2 intentos más por encima, una sola llamada puede terminar disparando hasta 6 requests reales con una espera acumulada de más de un minuto. Con timeouts así de largos, el proxy del Web App de Apps Script puede devolver una respuesta no-JSON con status inesperado (404 u otro) en vez de esperar — un síntoma que parece un bug de red pero es, en realidad, un problema de reintentos anidados.
+
+```javascript
+// ❌ MAL — vtexFetch_ ya reintenta 429 internamente; este wrapper duplica la espera
+function miRetryConBackoff_(path, method, payload, storeId) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try { return vtexFetch_(storeId, path, { method, body: payload }); }
+    catch (e) {
+      if (!String(e.message).includes('429') || attempt >= 1) throw e;
+      Utilities.sleep(1500 * Math.pow(2, attempt));
+    }
+  }
+}
+
+// ✅ BIEN — el helper base ya maneja 429; llamarlo directo
+vtexFetch_(storeId, path, { method, body: payload });
+```
+
+**Regla:** si un helper compartido (`vtexFetch_`, `vtexRequest_`, etc.) ya reintenta ante 429/5xx, ningún módulo debe agregar una capa de retry propia por encima. Si un módulo necesita un comportamiento de retry distinto (más intentos, backoff distinto), se ajusta el helper compartido con un parámetro opcional — no se duplica la lógica localmente.
+
+### 11.5 Cache de escaneos pesados (chunked)
+
+Los escaneos que paginan un catálogo/cola completa (ej. todos los productos, toda la cola de sugerencias pendientes) son el principal consumidor de la cuota compartida de `UrlFetchApp`. Cachear el resultado evita repetir el costo completo cuando:
+- La pantalla se recarga o el usuario cambia de filtro sin que los datos hayan cambiado (TTL corto, 30-60s).
+- El usuario reintenta un botón de "Escanear" varias veces mientras revisa la tabla (TTL medio, 5-10 min).
+- Una operación de escritura necesita datos que ya se trajeron al cargar una pantalla relacionada — reusar en vez de re-escanear (ver ejemplo de aprobación en `vtex-control-center/docs/project_workflow.md §13.12`).
+
+`CacheService` limita cada entrada a 100KB, así que un resultado de escaneo (que suele superar ese límite) necesita partirse en chunks y reensamblarse:
+
+```javascript
+// Utils.gs — genérico, sin conocimiento de dominio
+var CACHE_CHUNK_SIZE_DEFAULT = 90000; // margen bajo el límite real de 100KB
+
+function cachePutChunked_(key, value, ttlSec, chunkSize) {
+  try {
+    var size = chunkSize || CACHE_CHUNK_SIZE_DEFAULT;
+    var json = JSON.stringify(value);
+    var chunks = [];
+    for (var i = 0; i < json.length; i += size) chunks.push(json.slice(i, i + size));
+    var cache = CacheService.getScriptCache();
+    var map = {};
+    map[key + '_meta'] = String(chunks.length);
+    chunks.forEach(function(c, idx) { map[key + '_' + idx] = c; });
+    cache.putAll(map, ttlSec);
+  } catch (e) { /* cache best-effort: si falla, simplemente no cachea */ }
+}
+
+function cacheGetChunked_(key) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var count = parseInt(cache.get(key + '_meta') || '', 10);
+    if (!count) return null;
+    var keys = [];
+    for (var i = 0; i < count; i++) keys.push(key + '_' + i);
+    var got = cache.getAll(keys);
+    var json = '';
+    for (var j = 0; j < count; j++) {
+      var part = got[key + '_' + j];
+      if (part === undefined || part === null) return null; // chunk vencido/incompleto
+      json += part;
+    }
+    return JSON.parse(json);
+  } catch (e) { return null; }
+}
+
+function cacheInvalidateChunked_(key) {
+  try { CacheService.getScriptCache().remove(key + '_meta'); } catch (e) {}
+}
+```
+
+Uso típico dentro de una función de escaneo:
+
+```javascript
+function scanCatalog_(storeId) {
+  var cacheKey = 'scan_' + storeId;
+  var cached = cacheGetChunked_(cacheKey);
+  if (cached) return cached;
+
+  var result = /* ... escaneo pesado real ... */;
+
+  cachePutChunked_(cacheKey, result, 300); // 5 min
+  return result;
+}
+
+// Invalidar tras una escritura real que cambia lo cacheado
+function executeUpdate_(items, storeId) {
+  /* ... */
+  cacheInvalidateChunked_('scan_' + storeId);
+}
+```
+
+**Reglas:**
+- `ttlSec` y `chunkSize` son por-llamada — cada módulo elige el TTL según su patrón de uso (§11.5, primer párrafo), no hay un TTL global correcto para todos los casos.
+- Definir estas 3 funciones **una sola vez** en `Utils.gs` (o el helper compartido del proyecto) y reutilizarlas — no duplicar una copia local por módulo con un nombre distinto (ej. `scoreCachePutChunked_`, `simColorCachePutChunked_`). GAS mergea todos los `.gs` en un solo namespace global; copias locales "casi idénticas" no rompen nada mientras sean idénticas, pero divergen en silencio en el primer fix aplicado a una sin tocar las demás.
+- El cache es best-effort: si `CacheService` falla (payload enorme, cuota de cache agotada), la función debe seguir funcionando sin cache, no lanzar una excepción.
+
+### 11.6 fetch a APIs externas
 
 ```javascript
 function vtexFetch_(storeId, path, options) {
