@@ -1163,6 +1163,8 @@ Para operaciones que procesan ítems en lote (importación, actualización masiv
 </div>
 ```
 
+> El modal completo con overlay, cancelación y estimación de tiempo para operaciones largas (> 5 s) vive en `application_shell.md §9.4` — usar ese patrón en vez de este bloque inline para acciones disparadas por botón.
+
 ---
 
 ## 10. JavaScript

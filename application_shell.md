@@ -1,7 +1,7 @@
 # Application Shell — Estándar de Layout y Navegación
 
-**Versión:** 1.5.0  
-**Fecha:** 2026-06-24  
+**Versión:** 1.6.0  
+**Fecha:** 2026-07-03  
 **Autor:** Gabriel Luna — Productos Web  
 **Alcance:** VTEX Control Center · Commerce Hub · Project Control Center · Customer Service Control Center · Marketplace Portal · Herramientas internas
 
@@ -840,7 +840,9 @@ Estados: `ok` (verde) · `error` (rojo) · `loading` (gris).
 
 ### 9.4 Modal de carga con progreso y cancelación
 
-Para operaciones API largas (> 5 s) iniciadas por un botón del usuario. Reemplaza las barras inline (`progressWrap`). Patrón estándar aplicado en `vtex-control-center` desde v1.61.x.
+Para operaciones API largas (> 5 s) iniciadas por un botón del usuario, incluyendo operaciones **por lotes que escriben en VTEX** (importación, sync, actualización masiva). Reemplaza las barras inline (`progressWrap`). Patrón estándar aplicado en `vtex-control-center` desde v1.61.x.
+
+> Auditoría 2026-07: se relevaron ~14 módulos y se encontraron 4 variantes distintas de "loading" (modal completo, bloque inline con spinner, barra inline con %, barra mínima bajo el botón). Esta sección es la única fuente de verdad — no reinventar con nombres de clase o estructura distintos. Módulos pendientes de migrar al momento de esta auditoría: `descripciones.html`, `score-productos.html`, `similar-color-dc.html`, `similar-products-pdp.html`, `categorias.html`, `marcas.html`, `paginas.html`, `novedades.html`, `ofertas.html`.
 
 #### HTML del modal
 
@@ -859,6 +861,8 @@ Para operaciones API largas (> 5 s) iniciadas por un botón del usuario. Reempla
       <span id="xLoadElapsed" style="font-size:.8125rem;color:var(--text-secondary);">0 s</span>
       <span id="xLoadEta"     style="font-size:.8125rem;color:var(--text-secondary);"></span>
     </div>
+    <span id="xLoadDetail" style="display:none;font-size:.8125rem;color:var(--text-secondary);margin-top:4px;"></span>
+    <div id="xLoadErrorBox" class="status-bar error" style="display:none;margin-top:12px;"></div>
     <div class="modal-footer" style="margin-top:20px;justify-content:flex-end;">
       <button id="btnCancelXLoad" class="btn-secondary">Cancelar</button>
     </div>
@@ -866,18 +870,20 @@ Para operaciones API largas (> 5 s) iniciadas por un botón del usuario. Reempla
 </div>
 ```
 
-- Clases CSS usadas son globales de `styles.css`: `.modal-overlay`, `.modal`, `.progress-track`, `.progress-bar`, `.progress-header`, `.progress-footer`, `.modal-footer`.
+- Clases CSS usadas son globales de `styles.css`: `.modal-overlay`, `.modal`, `.progress-track`, `.progress-bar`, `.progress-header`, `.progress-footer`, `.modal-footer`, `.status-bar.error`.
 - `.modal` no tiene `padding` — agregar `style="padding:24px"` inline.
 - No agregar CSS local salvo que el módulo tenga necesidades específicas.
+- `xLoadDetail` y `xLoadErrorBox` empiezan ocultos (`display:none`) y solo se muestran cuando aplica (ver progreso real y errores más abajo).
 
 #### JS — estado y funciones
 
 ```js
 // ─── Loading modal ────────────────────────────────────────────────
-let xLoadCanceled    = false;
-let xLoadTimer       = null;
-let xLoadElapsedSecs = 0;
-const X_EST_SECS     = 20;   // segundos estimados para la operación
+let xLoadCanceled           = false;
+let xLoadTimer              = null;
+let xLoadElapsedSecs        = 0;
+let xLoadBackdropCancelable = true;  // false mientras se escribe un lote irreversible
+const X_EST_SECS            = 20;    // segundos estimados para la operación
 
 function showXLoadModal(subtitle) {
   xLoadCanceled    = false;
@@ -943,13 +949,15 @@ document.getElementById('btnCancelXLoad').addEventListener('click', () => {
   setStatus('Carga cancelada.', 'info');
 });
 document.getElementById('xLoadOverlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('xLoadOverlay')) {
+  if (e.target === document.getElementById('xLoadOverlay') && xLoadBackdropCancelable) {
     xLoadCanceled = true;
     closeXLoadModal(false);
     setStatus('Carga cancelada.', 'info');
   }
 });
 ```
+
+`xLoadBackdropCancelable` arranca en `true` (comportamiento actual, sin cambios para los módulos ya migrados) y solo pasa a `false` vía `setXLoadCancelable(false)` cuando la operación empieza a escribir lotes irreversibles — ver más abajo.
 
 #### Reglas
 
@@ -958,6 +966,50 @@ document.getElementById('xLoadOverlay').addEventListener('click', e => {
 - **Botón multi-operación**: si el mismo modal sirve para dos botones (ej. "Por SKU" y "Por almacén"), guardar la referencia activa en una variable `_xLoadBtn` y pasarla como parámetro a `showXLoadModal`.
 - **`setLoading(btn, true/false)`** no es obligatorio si `showXLoadModal` / `closeXLoadModal` manejan `btn.disabled` directamente — elegir uno u otro, no mezclar.
 - No usar `progressWrap` inline en módulos nuevos. El patrón de modal es el estándar.
+
+#### Progreso real para operaciones por lotes
+
+`X_EST_SECS` con timer simulado sirve para una sola llamada sin forma de contar avance (ej. una consulta a VTEX). Cuando la operación procesa **lotes contables** (ej. Novedades ejecutando N lotes de SKUs), no simular: actualizar el `%` y `xLoadDetail` con el progreso real en cada lote, y no arrancar el timer de `X_EST_SECS`.
+
+```js
+function updateXLoadProgress(current, total, detailText) {
+  const pct = Math.round((current / total) * 100);
+  document.getElementById('xLoadProgressBar').style.width = pct + '%';
+  const detail = document.getElementById('xLoadDetail');
+  detail.textContent = detailText;   // ej. "Lote 2/5 (340 SKUs)"
+  detail.style.display = '';
+}
+```
+
+Llamar `updateXLoadProgress` en cada iteración del loop de lotes, junto al `setStatus` que ya se usa para el status-bar de la página (ver `docs/project_workflow.md §13.14` sobre batching por entidad en VTEX Control Center).
+
+#### Cancelación no permitida en escrituras ya en curso
+
+El listener de `btnCancelXLoad` y el click en el backdrop (`xLoadOverlay`) están pensados para operaciones de **lectura** (consultas, previsualización) donde cancelar no deja nada a medio escribir. Si la operación ya empezó a escribir lotes en VTEX y un lote a medio aplicar no es reversible, **ocultar el botón Cancelar y no cerrar por click afuera** mientras esa escritura esté en curso:
+
+```js
+function setXLoadCancelable(cancelable) {
+  document.getElementById('btnCancelXLoad').style.display = cancelable ? '' : 'none';
+  xLoadBackdropCancelable = cancelable; // variable chequeada en el listener del overlay
+}
+```
+
+Cancelar, cuando está permitido, detiene los **lotes siguientes** — el lote en curso siempre termina, nunca se corta a mitad (mismo criterio que el circuit breaker de errores, ver `docs/project_workflow.md §13.11` y `§13.14`).
+
+#### Error dentro del modal (circuit breaker)
+
+Si un circuit breaker corta la ejecución (ej. un lote falla 100% — ver `docs/project_workflow.md §13.11`), mostrar el motivo en `xLoadErrorBox` **antes** de cerrar el modal, para que el usuario vea el error sin tener que buscarlo en el status-bar de la página:
+
+```js
+function showXLoadError(message) {
+  const box = document.getElementById('xLoadErrorBox');
+  box.textContent = message;
+  box.style.display = '';
+  setXLoadCancelable(false); // ya no hay nada que cancelar, solo cerrar
+}
+```
+
+El modal se cierra recién cuando el usuario reconoce el error (botón que en ese estado pasa a decir "Cerrar" en vez de "Cancelar"), no automáticamente.
 
 ---
 
