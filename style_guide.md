@@ -1099,7 +1099,7 @@ window.restrictWriteIfAgent = function () {
    └── 3–6 métricas clave, arriba del fold
 
 5. FILTROS / BÚSQUEDA
-   └── Panel sticky con search + selects + botón aplicar
+   └── .table-toolbar con .search-wrap + .filter-select (ver §9.2). No sticky.
 
 6. TABLA O GRID PRINCIPAL
    └── Datos paginados, ordenables, exportables
@@ -1108,7 +1108,43 @@ window.restrictWriteIfAgent = function () {
    └── Aparece al seleccionar filas: contador + acciones masivas
 ```
 
-### 9.2 Status bar
+### 9.2 Filtros / búsqueda
+
+**Estándar definido 2026-07-07** tras auditar ~24 módulos de VTEX Control Center: existían 6 variantes distintas (input suelto, `.filter-bar` local duplicado con implementaciones distintas en dos módulos, grids de `.field` ad hoc, etc.), y el `.filter-select` global ya existía pero solo 2 módulos lo reusaban de forma consistente. Este es ahora el único patrón a usar en módulos nuevos y el destino de la migración de los existentes.
+
+```html
+<div class="table-toolbar">
+  <label class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <input type="search" id="searchInput" placeholder="Buscar..." autocomplete="off" />
+  </label>
+
+  <select class="filter-select" id="filterEstado">
+    <option value="">Estado: Todos</option>
+    <option value="active">Activa</option>
+    <option value="inactive">Inactiva</option>
+  </select>
+
+  <button class="secondary filter-clear-btn" id="btnClearFilters" style="display:none;">✕ Limpiar</button>
+</div>
+```
+
+```css
+/* .table-toolbar, .search-wrap, .filter-select, .filter-clear-btn ya son
+   globales — no redefinir localmente en el módulo. */
+```
+
+**Reglas:**
+- **Filtrado en vivo por default**: `input`/`change` recalculan sobre los datos ya cargados en memoria, sin botón "Aplicar". Es el comportamiento de la inmensa mayoría de los módulos existentes — no inventar un paso extra donde no hace falta.
+- **Botón "Buscar" explícito solo si el filtro dispara una llamada al backend** (no un filtro en memoria) — ej. `pedidos.html`, `pagos.html`, `marketplace/productos.html`, donde traer todo el dataset de antemano no es viable. En esos casos el botón reemplaza al filtrado en vivo, no convive con él.
+- **"Limpiar filtros" (`.filter-clear-btn`) es condicional**: oculto por default, visible solo cuando algún filtro tiene un valor distinto del default. No confundir con "Limpiar selección" (bulk actions) — son conceptos distintos, cada uno con su propio botón si aplica.
+- **No sticky.** Ningún módulo actual lo necesita (paneles cortos); si un módulo futuro tiene una tabla muy larga, evaluarlo puntualmente ahí, no por default.
+- Selects que dependen de datos cargados (ej. categorías) pueden arrancar ocultos (`style="display:none"`) y mostrarse cuando los datos están listos — no bloquear el render del toolbar por eso.
+
+### 9.3 Status bar
 
 Siempre presente en módulos de datos. Indica el estado de la última operación.
 
@@ -1133,7 +1169,7 @@ function setStatus(msg, type = '') {
 .status-bar.warning{ background: var(--warning-bg); border-color: color-mix(in srgb, var(--warning) 55%, transparent); color: var(--warning); }
 ```
 
-### 9.3 Bulk action bar
+### 9.4 Bulk action bar
 
 Aparece solo cuando hay filas seleccionadas. Debe permanecer sticky en el bottom del viewport.
 
@@ -1145,7 +1181,7 @@ Aparece solo cuando hay filas seleccionadas. Debe permanecer sticky en el bottom
 </div>
 ```
 
-### 9.4 Progreso de operaciones bulk
+### 9.5 Progreso de operaciones bulk
 
 Para operaciones que procesan ítems en lote (importación, actualización masiva):
 
