@@ -715,7 +715,7 @@ Patrón canónico para el modal de alta/edición en pantallas de administración
 - **Guardado**: botón deshabilitado + texto `Guardando…` durante el fetch; error de backend en `#uf-error` sin tapar los errores de campo.
 - **Cierre**: click afuera o `Escape` (`style_guide.md §16.3`).
 - **Multi-tenant (opcional)**: si el proyecto tiene cuentas externas (ej. `seller_id`), agregar un segmented control "Tipo de cuenta" que alterna entre `#uf-rol-wrap` y un select de la entidad. No agregar esta extensión si el dominio no la necesita.
-- **Todo `<input>` lleva `type` explícito**. El selector CSS compartido (`input[type="text"], input[type="email"], ...`) solo matchea el atributo literal — sin `type`, el input queda sin estilo y distinto al resto del `field-row` (bug real: `uf-nombre` sin `type` en `marketplace-portal`).
+- **El selector CSS de inputs va por exclusión, no por lista**: `input:not([type="checkbox"]):not([type="radio"]), select` — así un `<input>` sin `type` explícito igual recibe el estilo del design system. Una lista de inclusión (`input[type="text"], input[type="email"], ...`) rompe apenas alguien olvida un `type` (bug real: `uf-nombre` sin `type` en `marketplace-portal`, mientras `uf-email` sí lo tenía y quedaba con otro tamaño).
 - **`.segmented` usa `display:flex` y sus botones `flex:1;text-align:center`** — nunca padding fijo, o las opciones miden distinto según el largo del texto (bug real: "Interno"/"Seller" con anchos distintos).
 
 ### 17.3 Checklist de conformidad
@@ -726,5 +726,5 @@ Patrón canónico para el modal de alta/edición en pantallas de administración
 - [ ] Contraseña: mostrar/ocultar + Generar + hash `sha256()` — nunca texto plano
 - [ ] Campo "Estado" fuera del modal (acción de fila con `confirm()`)
 - [ ] Cierre con click afuera y `Escape`
-- [ ] Todo `<input>` con `type` explícito
+- [ ] Selector CSS de inputs por exclusión (`input:not([type="checkbox"]):not([type="radio"])`), no por lista de tipos
 - [ ] `.segmented`: `display:flex` + botones `flex:1` (no padding fijo)
