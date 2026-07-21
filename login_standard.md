@@ -1,7 +1,7 @@
 # Login — Estándar de Autenticación
 
-**Versión:** 1.0.0  
-**Fecha:** 2026-06-24  
+**Versión:** 1.1.0  
+**Fecha:** 2026-07-21  
 **Autor:** Gabriel Luna — Productos Web  
 **Alcance:** VTEX Control Center · Commerce Hub · Project Control Center · Customer Service Control Center · Herramientas internas  
 **Implementación de referencia:** `commerce-hub/login.html` + `src/js/auth.js`
@@ -28,6 +28,7 @@
 14. [Pie institucional](#14-pie-institucional)
 15. [Plantilla HTML canónica](#15-plantilla-html-canónica)
 16. [Checklist de conformidad](#16-checklist-de-conformidad)
+17. [Modal de alta/edición de usuario (admin)](#17-modal-de-altaedición-de-usuario-admin)
 
 ---
 
@@ -651,3 +652,79 @@ Antes de considerar un login como conforme al estándar, verificar:
 - [ ] No hay flujo "Olvidé mi contraseña" — el admin resetea desde Configuración
 - [ ] No hay selector de tema en el login
 - [ ] No se muestra la versión de la app
+
+---
+
+## 17. Modal de alta/edición de usuario (admin)
+
+**Implementación de referencia:** `marketplace-portal/assets/js/auth.js` (`_openUserForm`, `#user-modal`)
+
+Patrón canónico para el modal de alta/edición en pantallas de administración de usuarios (`admin/usuarios.html`, "Configuración" → pestaña Usuarios). Definido a partir de comparar `marketplace-portal` y PCC — se tomó como base `marketplace-portal` por tener errores por campo, mostrar/generar contraseña y ARIA, con dos ajustes: el campo "Estado" queda **fuera** del modal (es una acción de fila con `confirm()`, no un dato de alta) y todo `<input>` debe llevar `type` explícito.
+
+### 17.1 Estructura HTML canónica
+
+```html
+<div class="modal-overlay" id="user-modal" style="display:none">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="user-form-title">
+    <h3 id="user-form-title">Nuevo usuario</h3>
+
+    <div class="field-row" style="margin-bottom:12px">
+      <div class="field">
+        <label for="uf-nombre">Nombre *</label>
+        <input id="uf-nombre" type="text" placeholder="Nombre completo">
+        <span class="field-error" id="uf-nombre-err" hidden></span>
+      </div>
+      <div class="field">
+        <label for="uf-email">Email *</label>
+        <input id="uf-email" type="email" placeholder="email@empresa.com">
+        <span class="field-error" id="uf-email-err" hidden></span>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:12px">
+      <label for="uf-password">Contraseña <span id="uf-pw-req">*</span></label>
+      <div class="pw-group">
+        <input id="uf-password" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+        <button type="button" id="uf-pw-toggle" onclick="_togglePasswordVisibility()">Ver</button>
+        <button type="button" onclick="_generatePassword()">Generar</button>
+      </div>
+      <span class="field-hint" id="uf-pw-hint"></span>
+      <span class="field-error" id="uf-password-err" hidden></span>
+    </div>
+
+    <div class="field" id="uf-rol-wrap" style="margin-bottom:6px">
+      <label for="uf-rol">Rol *</label>
+      <select id="uf-rol"></select>
+    </div>
+
+    <div class="status-bar error" id="uf-error" style="margin-top:10px" hidden></div>
+    <div class="modal-actions">
+      <button class="button secondary" onclick="_closeUserForm()">Cancelar</button>
+      <button class="button" id="uf-save-btn" onclick="_saveUser()">Guardar</button>
+    </div>
+  </div>
+</div>
+```
+
+### 17.2 Reglas clave
+
+- **Alta vs edición**: en edición, contraseña vacía = no cambiar (`Dejar vacío para no cambiar la contraseña`); en alta, contraseña obligatoria. Foco en el primer campo al abrir.
+- **Validación** en orden, con foco en el primer inválido: Nombre → Email (regex) → Contraseña (obligatoria solo en alta, mínimo 6 caracteres si se completa).
+- **Contraseña**: botón "Generar" (12 caracteres, sin ambiguos `0/O/1/l/I`) + mostrar/ocultar. Siempre `password_hash = await sha256(password)` — nunca texto plano.
+- **Estado (activo/inactivo)** vive fuera del modal, como acción de fila (`Activar`/`Desactivar`) con `confirm()` — no es un campo de alta.
+- **Guardado**: botón deshabilitado + texto `Guardando…` durante el fetch; error de backend en `#uf-error` sin tapar los errores de campo.
+- **Cierre**: click afuera o `Escape` (`style_guide.md §16.3`).
+- **Multi-tenant (opcional)**: si el proyecto tiene cuentas externas (ej. `seller_id`), agregar un segmented control "Tipo de cuenta" que alterna entre `#uf-rol-wrap` y un select de la entidad. No agregar esta extensión si el dominio no la necesita.
+- **Todo `<input>` lleva `type` explícito**. El selector CSS compartido (`input[type="text"], input[type="email"], ...`) solo matchea el atributo literal — sin `type`, el input queda sin estilo y distinto al resto del `field-row` (bug real: `uf-nombre` sin `type` en `marketplace-portal`).
+- **`.segmented` usa `display:flex` y sus botones `flex:1;text-align:center`** — nunca padding fijo, o las opciones miden distinto según el largo del texto (bug real: "Interno"/"Seller" con anchos distintos).
+
+### 17.3 Checklist de conformidad
+
+- [ ] Markup del modal fijo en el HTML (no `innerHTML` regenerado en cada apertura)
+- [ ] `role="dialog"` `aria-modal="true"` `aria-labelledby` apuntando al título
+- [ ] Errores por campo (`.field-error`), no un solo banner genérico
+- [ ] Contraseña: mostrar/ocultar + Generar + hash `sha256()` — nunca texto plano
+- [ ] Campo "Estado" fuera del modal (acción de fila con `confirm()`)
+- [ ] Cierre con click afuera y `Escape`
+- [ ] Todo `<input>` con `type` explícito
+- [ ] `.segmented`: `display:flex` + botones `flex:1` (no padding fijo)
