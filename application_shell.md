@@ -672,6 +672,8 @@ const CHANGELOG = [
 
 > `VERSION.number` siempre debe coincidir con el `v` de la primera entrada del `CHANGELOG`. Si se actualiza la versión, se agrega una nueva entrada al principio del array.
 
+**Largo de `desc`:** una oración (~80-120 caracteres), pensada para leerse en 1-2 líneas dentro del popover (`max-width: 340px`, ver §8.8). Describe el cambio de cara al usuario, no el detalle técnico de la implementación ni la lista completa de archivos tocados — eso queda en el mensaje de commit. Evitar enumerar cada sub-cambio de un commit grande: quedarse con el impacto principal.
+
 ### 8.5 Cantidad de versiones visibles
 
 No hay límite fijo de entradas. El popover tiene `max-height: 70vh` con `overflow-y: auto` — si el changelog crece, aparece scroll interno.
