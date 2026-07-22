@@ -334,6 +334,44 @@ El topbar standalone sobre fondo oscuro usa el mismo gradiente institucional, si
 
 ---
 
+### 3.7 Colores de marca por tienda (proyectos Sporting/Woker)
+
+Aplica solo a proyectos del ecosistema eCommerce Sporting/Woker (`commerce-hub`,
+`project-control-center`, `vtex-control-center`, etc.) — no forma parte de la paleta
+base universal, porque otros productos internos no tienen noción de "tienda".
+
+Cuando una UI necesita distinguir visualmente Sporting de Woker (badges, chips de
+filtro, barras de un dashboard, links por tienda), usar estos tokens en vez de
+reutilizar colores de la paleta base (`--orange`, `--purple`, etc.) que ya tienen
+otro significado semántico en la mayoría de los proyectos:
+
+```css
+:root {
+  --tienda-sporting:     #1a7a0a;   /* verde de marca */
+  --tienda-sporting-dim: #eafbe7;
+  --tienda-woker:        #d83f16;   /* rojo-naranja de marca */
+  --tienda-woker-dim:    #fff1ec;
+}
+
+[data-theme="dark"] {
+  --tienda-sporting:     #4ade80;
+  --tienda-sporting-dim: rgba(37,182,12,.18);
+  --tienda-woker:        #fb923c;
+  --tienda-woker-dim:    rgba(252,82,38,.18);
+}
+```
+
+Físico/B2B y otros canales no tienen un color de marca propio — usan `--primary`
+(o el badge gris genérico si el proyecto no distingue canal físico).
+
+Origen: valores ya en uso en `project-control-center` (`TIENDA_CLASS` /
+`.tienda-sporting` / `.tienda-woker` en su `main.css`) y adoptados en `commerce-hub`
+(`--tienda-sporting` / `--tienda-woker` en `src/css/main.css`, aplicados a `.t-spg`/`.t-wkr`).
+Si un proyecto nuevo necesita distinguir Sporting/Woker visualmente, reusar estos
+valores en vez de definir otros nuevos.
+
+---
+
 ## 4. Tipografía
 
 ### 4.1 Fuentes
